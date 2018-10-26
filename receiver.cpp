@@ -1,4 +1,5 @@
-// Server side implementation of UDP client-server model 
+
+#include <bits/stdc++.h>// Server side implementation of UDP client-server model 
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <unistd.h> 
@@ -7,7 +8,7 @@
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
 #include <netinet/in.h>
-#include <bits/stdc++.h>
+
 
 using namespace std;
 #define PORT     8080 
@@ -32,7 +33,7 @@ int main() {
       
     // Filling server information 
     servaddr.sin_family    = AF_INET; // IPv4 
-    servaddr.sin_addr.s_addr = inet_addr("192.168.88.171");; 
+    servaddr.sin_addr.s_addr = INADDR_ANY;
     servaddr.sin_port = htons(PORT); 
       
     // Bind the socket with the server address 
