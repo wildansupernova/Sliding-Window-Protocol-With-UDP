@@ -16,7 +16,8 @@ using namespace std;
 int main() { 
 	int sockfd; 
 	char buffer[MAXLINE]; 
-	char *hello = "Hello from client"; 
+	string data = "Hello from client";
+	const char *hello = data.c_str(); 
 	struct sockaddr_in	 servaddr; 
 
 	// Creating socket file descriptor 
@@ -30,7 +31,7 @@ int main() {
 	// Filling server information 
 	servaddr.sin_family = AF_INET; 
 	servaddr.sin_port = htons(PORT); 
-	servaddr.sin_addr.s_addr = INADDR_ANY; 
+	servaddr.sin_addr.s_addr = inet_addr("192.168.88.171");; 
 	
 	unsigned int n, len; 
 	

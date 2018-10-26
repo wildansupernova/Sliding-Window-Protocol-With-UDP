@@ -6,8 +6,10 @@
 #include <sys/types.h> 
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
-#include <netinet/in.h> 
-  
+#include <netinet/in.h>
+#include <bits/stdc++.h>
+
+using namespace std;
 #define PORT     8080 
 #define MAXLINE 1024 
   
@@ -15,7 +17,8 @@
 int main() { 
     int sockfd; 
     char buffer[MAXLINE]; 
-    char *hello = "Hello from server"; 
+    string serverStr = "Hello from server"; 
+    const char *hello = serverStr.c_str(); 
     struct sockaddr_in servaddr, cliaddr; 
       
     // Creating socket file descriptor 
@@ -40,7 +43,7 @@ int main() {
         exit(EXIT_FAILURE); 
     } 
       
-    int len, n; 
+    unsigned int len, n; 
     n = recvfrom(sockfd, (char *)buffer, MAXLINE,  
                 MSG_WAITALL, ( struct sockaddr *) &cliaddr, 
                 &len); 
