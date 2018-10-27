@@ -8,6 +8,7 @@
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
 #include <netinet/in.h> 
+#include "utility.cpp"
 using namespace std;
 #define PORT	 8080 
 #define MAXLINE 1024 
@@ -23,6 +24,7 @@ struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
 
 	return servaddr;
 }
+
 
 // Driver code 
 int main(int argc, char* argv[]) { 
@@ -44,17 +46,38 @@ int main(int argc, char* argv[]) {
 	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
 		perror("socket creation failed"); 
 		exit(EXIT_FAILURE); 
-	} 
+	}
 
-	unsigned int n, len; 
+	FILE* file = fopen(fileName, "r");
+	if (file == NULL) {
+		exit(0);
+	}
+
+	unsigned char buffer[bufferSize];
+	int counterBuffer = 0;
+	bool isSentAll = false;
+	while (!isSentAll) {
+		if (counterBuffer < bufferSize) {
+
+		}
+	}	
+
+
+
+
+
+
+
+	// unsigned int n, len; 
 	
-	sendto(sockfd, (const char *)hello, strlen(hello), 
-		MSG_CONFIRM, (const struct sockaddr *) &servaddr, 
-			sizeof(servaddr)); 		
-	n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len); 
-	buffer[n] = '\0'; 
-	printf("Server : %s\n", buffer); 
+	// sendto(sockfd, (const char *)hello, strlen(hello), 
+	// 	MSG_CONFIRM, (const struct sockaddr *) &servaddr, 
+	// 		sizeof(servaddr)); 		
+	// n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len); 
+	// buffer[n] = '\0'; 
+	// printf("Server : %s\n", buffer); 
 
 	close(sockfd); 
+	fclose(file);
 	return 0; 
 }
