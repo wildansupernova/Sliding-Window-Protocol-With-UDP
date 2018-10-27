@@ -8,6 +8,7 @@
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
 #include <netinet/in.h> 
+#include "utility.cpp"
 using namespace std;
 #define PORT	 8080 
 #define MAXLINE 1024 
@@ -23,6 +24,7 @@ struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
 
 	return servaddr;
 }
+
 
 // Driver code 
 int main(int argc, char* argv[]) { 
