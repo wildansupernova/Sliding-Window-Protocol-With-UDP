@@ -15,17 +15,7 @@ using namespace std;
 #define MAXLINE 1024 
   
 // Driver code 
-int main(int argc, char* argv[]) { 
-
-
-    //Input Processing
-	char *fileName = argv[1];
-	int windowSize = atoi(argv[2]); //frame
-	int bufferSize = atoi(argv[3]); //byte
-	int portDestination = atoi(argv[4]);
-
-
-
+int main() { 
     int sockfd; 
     char buffer[MAXLINE]; 
     string serverStr = "Hello from server"; 
