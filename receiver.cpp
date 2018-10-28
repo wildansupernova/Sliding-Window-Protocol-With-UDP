@@ -61,12 +61,15 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE); 
     } 
       
-    unsigned int len, n; 
-    n = recvfrom(sockfd, (char *)buffer, MAXLINE,  
-                MSG_WAITALL, ( struct sockaddr *) &cliaddr, 
-                &len); 
-    buffer[n] = '\0'; 
-    printf("Client : %s\n", buffer); 
+    unsigned int len, n;
+    while(true){
+
+        n = recvfrom(sockfd, (char *)buffer, MAXLINE,  
+                    MSG_WAITALL, ( struct sockaddr *) &cliaddr, 
+                    &len); 
+        buffer[n] = '\0'; 
+        printf("Client : %s\n", buffer);
+    }  
     sendto(sockfd, (const char *)hello, strlen(hello),  
         MSG_CONFIRM, (const struct sockaddr *) &cliaddr, 
             len); 
