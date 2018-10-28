@@ -1,8 +1,8 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#define ACKVALUE = 0x1;
-#define NAKVALUE = 0x2;
+#define ACKVALUE 0x1;
+#define NAKVALUE 0x2;
 
 typedef struct  ACK { 
         unsigned char ack ;
@@ -16,7 +16,8 @@ typedef struct  Frame {
         unsigned int dataLength;
         unsigned char data[1024];
         unsigned char checksum;
-        int timeStamp;
+        bool acked = false;
+        int timeStamp = -1;
 } frame;
 
 unsigned char calculateChecksum(unsigned char ack,unsigned int nextSequenceNumber) {
