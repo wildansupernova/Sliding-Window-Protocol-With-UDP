@@ -72,21 +72,20 @@ bool isValidDataFrame(unsigned char *dataFrame) {
     return !(resultCharChecksum & checksumCompare);
 }
 
-frame convertToFrame(unsigned char *dataFrame){
-    int totalData = 1034;
+frame convertToFrame(unsigned char *dataFrame) {
     int i;
 
     frame tempFrame;
     tempFrame.SOH = dataFrame[0];
-    for(i = 1;i<=4;i++){
+    for (i = 1; i <= 4; i++) {
         tempFrame.sequenceNumber <<= 8;
-        tempFrame.dataLength = tempFrame.dataLength | dataFrame[i]; 
+        tempFrame.sequenceNumber |= dataFrame[i];
     }
-    for(i=5; i<=8;i++){
+    for (i = 5; i <= 8; i++) {
         tempFrame.dataLength <<= 8;
-        tempFrame.dataLength = tempFrame.dataLength | dataFrame[i];
+        tempFrame.dataLength |= dataFrame[i];
     }
-    for(i=9;i <= 1032;i++){
+    for (i = 9; i <= 1032; i++) {
         tempFrame.data[i-9] = dataFrame[i];
     }
     tempFrame.checksum = dataFrame[1033];
@@ -94,17 +93,18 @@ frame convertToFrame(unsigned char *dataFrame){
     return tempFrame;
 }
 
-unsigned char* convertToDataFrame(frame tempFrame){
+unsigned char* convertToDataFrame(frame tempFrame) {
     int i;
+
     unsigned char dataFrame[1034];
     dataFrame[0] = tempFrame.SOH;
-    for(i=1;i<=4;i++){
-        dataFrame[i] = tempFrame.sequenceNumber >> (8 * (4-i));
+    for (i = 1; i <= 4; i++) {
+        dataFrame[i] = tempFrame.sequenceNumber >> (8 * (4 - i));
     }
-    for(i=5;i<=8;i++){
-        dataFrame[i] = tempFrame.dataLength >> (8 * (8-i));
+    for (i = 5; i <= 8; i++) {
+        dataFrame[i] = tempFrame.dataLength >> (8 * (8 - i));
     }
-    for(i=9;i<=1032;i++){
+    for (i = 9; i <= 1032; i++) {
         dataFrame[i] = tempFrame.data[i-9];
     }
     dataFrame[1033] = tempFrame.checksum;
