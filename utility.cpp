@@ -1,8 +1,8 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#define ACKVALUE = 0x1;
-#define NAKVALUE = 0x2;
+#define ACKVALUE 1;
+#define NAKVALUE 2;
 
 typedef struct  ACK { 
         unsigned char ack ;
@@ -18,6 +18,26 @@ typedef struct  Frame {
         unsigned char checksum;
         int timeStamp;
 } frame;
+
+ack convertToAck(unsigned char *ackFrame){
+    ack tempAck;
+    tempAck.ack = ackFrame[0];
+    for (int i = 1; i <= 4; i++) {
+        tempAck.nextSequenceNumber <<= 8;
+        tempAck.nextSequenceNumber |= ackFrame[i];
+    }
+    tempAck.checksum = ackFrame[5];
+    return tempAck;
+}
+
+unsigned char* convertToAckFrame(ack inputAck){
+    unsigned char tempAckFrame[6];
+    tempAckFrame[0] = inputAck.ack;
+    for (int i = 1; i <= 4; i++) {
+        tempAckFrame[i] = inputAck.nextSequenceNumber >> (8 * (4 - i));
+    }
+    tempAckFrame[5] = inputAck.checksum;
+}
 
 unsigned char calculateChecksum(unsigned char ack,unsigned int nextSequenceNumber) {
     unsigned int result = 0;

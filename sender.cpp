@@ -9,6 +9,7 @@
 #include <arpa/inet.h> 
 #include <netinet/in.h> 
 #include "utility.cpp"
+#include <queue>
 using namespace std;
 #define PORT	 8080 
 #define MAXLINE 1024 
@@ -54,6 +55,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	unsigned char buffer[bufferSize];
+	queue<char> buffer;
 	int counterBuffer = 0;
 	bool isSentAll = false;
 	while (!isSentAll) {
