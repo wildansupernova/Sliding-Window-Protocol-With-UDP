@@ -18,7 +18,7 @@ using namespace std;
 int main() { 
     int sockfd; 
     char buffer[MAXLINE]; 
-    string serverStr = "Hello from server"; 
+    string serverStr = "Hello from dichi"; 
     const char *hello = serverStr.c_str(); 
     struct sockaddr_in servaddr, cliaddr; 
       

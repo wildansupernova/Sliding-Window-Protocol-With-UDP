@@ -16,7 +16,8 @@ typedef struct  Frame {
         unsigned int dataLength;
         unsigned char data[1024];
         unsigned char checksum;
-        int timeStamp;
+        bool acked = false;
+        int timeStamp = -1;
 } frame;
 
 ack convertToAck(unsigned char *ackFrame){
