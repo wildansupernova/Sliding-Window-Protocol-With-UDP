@@ -1,8 +1,8 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#define ACKVALUE 0x1;
-#define NAKVALUE 0x2;
+#define ACKVALUE 1
+#define NAKVALUE 2
 
 typedef struct  ACK { 
         unsigned char ack ;
@@ -73,6 +73,19 @@ bool isValidDataFrame(unsigned char *dataFrame) {
     return !(resultCharChecksum & checksumCompare);
 }
 
+bool isAckValid(unsigned char *dataAck) {
+    int totalData = 5;
+    int resultChecksum = 0;
+
+    for (int i=0;i<totalData;i++) {
+        resultChecksum += dataAck[i];
+        resultChecksum = (resultChecksum + (resultChecksum >> 8)) & 0xFF;
+    }
+    char checksumCompare = dataAck[totalData];
+    char resultCharChecksum = resultChecksum & 0xFF;
+    return !(resultCharChecksum & checksumCompare);
+}
+
 frame convertToFrame(unsigned char *dataFrame) {
     int i;
 
@@ -94,6 +107,19 @@ frame convertToFrame(unsigned char *dataFrame) {
     return tempFrame;
 }
 
+ack convertToAck (unsigned char * dataAck) {
+    ack tempAck;
+    tempAck.ack = dataAck[0];
+    unsigned int seqNumber = 0;
+    for (int i=1;i<=4;i++) {
+        seqNumber <<= 8;
+        seqNumber |= dataAck[i];
+    }
+    tempAck.nextSequenceNumber = seqNumber;
+    tempAck.checksum = dataAck[5];
+    return tempAck;
+}
+
 unsigned char* convertToDataFrame(frame tempFrame) {
     int i;
 
@@ -111,4 +137,16 @@ unsigned char* convertToDataFrame(frame tempFrame) {
     dataFrame[1033] = tempFrame.checksum;
 
     return dataFrame;
+}
+
+
+bool isInSendingWindow (unsigned int lfs,unsigned int windowSize, unsigned int seqNum) {
+    unsigned int left = lfs-windowSize+1;
+    unsigned int right = lfs;
+    return left <= seqNum && seqNum <= right;
+}
+
+
+int calculateIndexInQueueSender (unsigned int lfs,unsigned int windowSize, unsigned int seqNum) {
+    return seqNum - (lfs-windowSize+1);
 }
