@@ -16,8 +16,7 @@ using namespace std;
 int main() { 
 	int sockfd; 
 	char buffer[MAXLINE]; 
-	string data = "Hello from dichi";
-	string data2 = "Hai mathias";
+	string data = "Hello from Math";
 	const char *hello = data.c_str(); 
 	const char *hello2 = data2.c_str();
 	struct sockaddr_in	 servaddr; 
@@ -33,6 +32,7 @@ int main() {
 	// Filling server information 
 	servaddr.sin_family = AF_INET; 
 	servaddr.sin_port = htons(PORT); 
+
 	servaddr.sin_addr.s_addr = inet_addr("192.168.137.133");
 	
 	unsigned int n, len; 

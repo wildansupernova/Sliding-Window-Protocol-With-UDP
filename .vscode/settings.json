@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "functional": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "fstream": "cpp"
     }
 }

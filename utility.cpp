@@ -20,6 +20,26 @@ typedef struct  Frame {
         int timeStamp = -1;
 } frame;
 
+ack convertToAck(unsigned char *ackFrame){
+    ack tempAck;
+    tempAck.ack = ackFrame[0];
+    for (int i = 1; i <= 4; i++) {
+        tempAck.nextSequenceNumber <<= 8;
+        tempAck.nextSequenceNumber |= ackFrame[i];
+    }
+    tempAck.checksum = ackFrame[5];
+    return tempAck;
+}
+
+unsigned char* convertToAckFrame(ack inputAck){
+    unsigned char tempAckFrame[6];
+    tempAckFrame[0] = inputAck.ack;
+    for (int i = 1; i <= 4; i++) {
+        tempAckFrame[i] = inputAck.nextSequenceNumber >> (8 * (4 - i));
+    }
+    tempAckFrame[5] = inputAck.checksum;
+}
+
 unsigned char calculateChecksum(unsigned char ack,unsigned int nextSequenceNumber) {
     unsigned int result = 0;
     result += ack;

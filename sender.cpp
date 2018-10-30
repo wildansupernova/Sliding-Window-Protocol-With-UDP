@@ -10,6 +10,7 @@
 #include <netinet/in.h> 
 #include <queue>
 #include "utility.cpp"
+#include <queue>
 
 using namespace std;
 
@@ -98,6 +99,7 @@ int main(int argc, char* argv[]) {
 	// Deklarasi variabel
 	queue<char> bufferChar;
 	deque<frame> bufferFrame;
+
 	bool isSentAll = false;
 	unsigned int seqNum = 0;
 	unsigned int LAR = -1;
