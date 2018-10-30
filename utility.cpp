@@ -82,6 +82,27 @@ unsigned char calculateChecksum(char SOH, unsigned int sequenceNumber,unsigned i
     return ~(result & 0xFF);
 }
 
+frame convertToFrame(unsigned char *dataFrame) {
+    int i;
+
+    frame tempFrame;
+    tempFrame.SOH = dataFrame[0];
+    for (i = 1; i <= 4; i++) {
+        tempFrame.sequenceNumber <<= 8;
+        tempFrame.sequenceNumber |= dataFrame[i];
+    }
+    for (i = 5; i <= 8; i++) {
+        tempFrame.dataLength <<= 8;
+        tempFrame.dataLength |= dataFrame[i];
+    }
+    for (i = 9; i < tempFrame.dataLength + 9; i++) {
+        tempFrame.data[i-9] = dataFrame[i];
+    }
+    tempFrame.checksum = dataFrame[tempFrame.dataLength + 9];
+
+    return tempFrame;
+}
+
 bool isValidDataFrame(unsigned char *dataFrame) {
     int resultChecksum = 0;
     frame tempFrame = convertToFrame(dataFrame);
@@ -108,28 +129,6 @@ bool isAckValid(unsigned char *dataAck) {
     char resultCharChecksum = resultChecksum & 0xFF;
     return !(resultCharChecksum & checksumCompare);
 }
-
-frame convertToFrame(unsigned char *dataFrame) {
-    int i;
-
-    frame tempFrame;
-    tempFrame.SOH = dataFrame[0];
-    for (i = 1; i <= 4; i++) {
-        tempFrame.sequenceNumber <<= 8;
-        tempFrame.sequenceNumber |= dataFrame[i];
-    }
-    for (i = 5; i <= 8; i++) {
-        tempFrame.dataLength <<= 8;
-        tempFrame.dataLength |= dataFrame[i];
-    }
-    for (i = 9; i < tempFrame.dataLength + 9; i++) {
-        tempFrame.data[i-9] = dataFrame[i];
-    }
-    tempFrame.checksum = dataFrame[tempFrame.dataLength + 9];
-
-    return tempFrame;
-}
-
 
 unsigned char* convertToDataFrame(frame tempFrame) {
     int i;

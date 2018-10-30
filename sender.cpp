@@ -19,6 +19,7 @@ using namespace std;
 #define DATA_FRAME_SIZE 1034
 #define ACK_FRAME_SIZE 6
 #define TIMEOUT 10
+#define RECVFROM_TIMEOUT 4294967295
 
 
 pthread_mutex_t lockQueueRecv;
@@ -60,17 +61,19 @@ void fillBuffer(FILE* file, deque<frame>& buffer, int maxBuff, bool& isEOF, unsi
 	}
 }
 
-void fetchACK(bool& isSentAll, int &sockfd, struct sockaddr_in servaddr, queue<ack>& bufferACK) {
+void fetchACK(bool *isSentAll, int *sockfd, struct sockaddr_in *servaddr, queue<ack> *bufferACK) {
     unsigned int n, len; 
     unsigned char bufferAck[ACK_FRAME_SIZE];
 	ack tempACK;
  
-    while (!isSentAll) {
-        n = recvfrom(sockfd, (char *)bufferAck, ACK_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
+    while (!(*isSentAll)) {
+        n = recvfrom(*sockfd, (char *)bufferAck, ACK_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) servaddr, &len);
 
 		tempACK = convertToAck(bufferAck);
 		pthread_mutex_lock(&lockQueueRecv); 
-		bufferACK.push_back(tempACK);
+		if (n != RECVFROM_TIMEOUT) {
+			(*bufferACK).push(tempACK);
+		}
 		pthread_mutex_unlock(&lockQueueRecv); 
     }
 }
@@ -115,7 +118,7 @@ int main(int argc, char* argv[]) {
     tv.tv_sec = 5;  /* 30 Secs Timeout */
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
 
-	thread t1(fetchACK, isSentAll, sockfd, servaddr, bufferACK);
+	std::thread t1(fetchACK, &isSentAll, &sockfd, &servaddr, &bufferACK);
 
 	while (!isSentAll) {
 		//cek isi bufferACK
@@ -124,37 +127,39 @@ int main(int argc, char* argv[]) {
 			tempACK = bufferACK.front();
 			bufferACK.pop();
 
-			
+			bufferFrame[tempACK.nextSequenceNumber-LAR-2].acked = true;
 		}
+		
 		pthread_mutex_unlock(&lockQueueRecv); 
-
+		//pop frame paling kiri yang udah acked
+		while (bufferFrame.front().acked) {
+			
+			bufferFrame.pop_front();
+			LAR++;
+		}
 		//cek isi bufferFrame
-		for(int i = 0; i < bufferFrame.size(); i++)
+		for(int i = 0; i < windowSize && i < bufferFrame.size(); i++)
 		{
 			if (!bufferFrame[i].acked) {
-				if (bufferFrame[i].timeStamp == -1 || bufferFrame[i].timeStamp < time(0)) {
+				if (bufferFrame[i].timeStamp == -1) {
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
 					sendto(sockfd, (const char *)convertToDataFrame(bufferFrame[i]), DATA_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
 					if (bufferFrame[i].sequenceNumber > LFS) {
 						LFS = bufferFrame[i].sequenceNumber;
 					}
-				} 
+				} else if (bufferFrame[i].timeStamp < time(0)) {
+					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
+					sendto(sockfd, (const char *)convertToDataFrame(bufferFrame[i]), DATA_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
+				}
 			}
 		}
-
-		while(!bufferFrame.empty() && bufferFrame.front().acked){
-			LAR = bufferFrame[0].sequenceNumber;
-			bufferFrame.pop_front();			
+		if (!isEOF) {
+			fillBuffer(file, bufferFrame, bufferSize, isEOF, seqNum);
 		}
-
-		fillBuffer(file, bufferFrame, bufferSize, isEOF, seqNum);
-		if (bufferFrame.empty()) {
+		if (bufferFrame.empty() && isEOF) {
 			isSentAll = true;
 		}
 	}	
-
-
-
 
 	// unsigned int n, len; 
 	
