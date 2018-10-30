@@ -10,7 +10,7 @@
 #include <netinet/in.h> 
 #include <queue>
 #include "utility.cpp"
-#include <thread>
+#include <queue>
 
 using namespace std;
 
@@ -20,8 +20,6 @@ using namespace std;
 #define ACK_FRAME_SIZE 6
 #define TIMEOUT 10
 
-
-pthread_mutex_t lockQueueRecv;
 
 struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
 	struct sockaddr_in	 servaddr; 
@@ -35,44 +33,43 @@ struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
 	return servaddr;
 }
 
-void fillBuffer(FILE* file, deque<frame>& buffer, int maxBuff, bool& isEOF, unsigned int& seqNum) {
+void fillBuffer(FILE* file, queue<char>& buffer, int maxBuff) {
 	unsigned char c;
 
-	while (buffer.size() < maxBuff) {
-        frame tempFrame;
-        int counter = 0;
-
-		while (!isEOF && counter < MAX_DATA_SIZE) {
-            if (fscanf(file, "%c", &c) != EOF) {
-                tempFrame.data[counter] = c;
-                counter++;
-            } else {
-                isEOF = true;
-                tempFrame.SOH = 0;
-            }
+	while (buffer.size < maxBuff) {
+		if (fscanf(file, "%c", &c) != EOF) {
+			buffer.push(c);
 		}
-
-        tempFrame.sequenceNumber = seqNum;
-        tempFrame.dataLength = counter;
-        tempFrame.checksum = calculateChecksum(tempFrame.SOH, tempFrame.sequenceNumber, tempFrame.dataLength, tempFrame.data);
-
-        buffer.push_back(tempFrame);
 	}
 }
 
-void fetchACK(bool& isSentAll, int &sockfd, struct sockaddr_in servaddr, queue<ack>& bufferACK) {
-    unsigned int n, len; 
-    unsigned char bufferAck[ACK_FRAME_SIZE];
-	ack tempACK;
- 
-    while (!isSentAll) {
-        n = recvfrom(sockfd, (char *)bufferAck, ACK_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
+void loadFrameFromBuffer(deque<frame>& bufferFrame, queue<char>& bufferChar, unsigned int& seqNum, int maxFrame) {
+	bool empty = false;
+	int counter;
 
-		tempACK = convertToAck(bufferAck);
-		pthread_mutex_lock(&lockQueueRecv); 
-		bufferACK.push_back(tempACK);
-		pthread_mutex_unlock(&lockQueueRecv); 
-    }
+	while (!empty && bufferFrame.size() < maxFrame) {
+		frame tempFrame;
+		counter = 0;
+
+		while (!empty && counter < MAX_DATA_SIZE) {
+			tempFrame.data[counter] = bufferChar.front();
+			bufferChar.pop();
+			counter++;
+			
+			if (bufferChar.empty()) {
+				empty = true;
+			}
+		}
+
+		tempFrame.SOH = 0x1;
+		tempFrame.sequenceNumber = seqNum;
+		tempFrame.dataLength = counter;
+		tempFrame.checksum = calculateChecksum(tempFrame.SOH, tempFrame.sequenceNumber, tempFrame.dataLength, tempFrame.data);
+
+		seqNum++;
+
+		bufferFrame.push_back(tempFrame);
+	}
 }
 
 // Driver code 
@@ -100,34 +97,18 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Deklarasi variabel
+	queue<char> bufferChar;
 	deque<frame> bufferFrame;
-	queue<ack> bufferACK;
+
 	bool isSentAll = false;
-    bool isEOF = false;
-	ack tempACK;
 	unsigned int seqNum = 0;
 	unsigned int LAR = -1;
 	unsigned int LFS = -1;
 
-	fillBuffer(file, bufferFrame, bufferSize, isEOF, seqNum);
-
-    struct timeval tv;
-    tv.tv_sec = 5;  /* 30 Secs Timeout */
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
-
-	thread t1(fetchACK, isSentAll, sockfd, servaddr, bufferACK);
+	fillBuffer(file, bufferChar, bufferSize);
+	loadFrameFromBuffer(bufferFrame, bufferChar, seqNum, windowSize);
 
 	while (!isSentAll) {
-		//cek isi bufferACK
-		pthread_mutex_lock(&lockQueueRecv); 
-		for (int i = 0; i < bufferACK.size(); i++) {
-			tempACK = bufferACK.front();
-			bufferACK.pop();
-
-			
-		}
-		pthread_mutex_unlock(&lockQueueRecv); 
-
 		//cek isi bufferFrame
 		for(int i = 0; i < bufferFrame.size(); i++)
 		{
@@ -142,13 +123,31 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
+		unsigned int n, len; 
+		unsigned char bufferAck[ACK_FRAME_SIZE];
+		n = recvfrom(sockfd, (char *)bufferAck, ACK_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
+
+		if (isAckValid(bufferAck)) {
+			ack tempAck = convertToAck(bufferAck);
+			unsigned int seqNumAck = tempAck.nextSequenceNumber-1;
+			if (bufferAck[0] == ACKVALUE) {
+				if (isInSendingWindow(LFS,windowSize,tempAck.nextSequenceNumber-1)) {
+					bufferFrame[calculateIndexInQueueSender(LFS,windowSize,tempAck.nextSequenceNumber-1)].acked = true;
+				}
+			} else if (bufferAck[0] == NAKVALUE){
+				bufferFrame[seqNumAck].timeStamp = time(0) + TIMEOUT;
+				sendto(sockfd, (const char *)convertToDataFrame(bufferFrame[seqNumAck]), DATA_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
+			}
+		}
+
 		while(!bufferFrame.empty() && bufferFrame.front().acked){
 			LAR = bufferFrame[0].sequenceNumber;
 			bufferFrame.pop_front();			
 		}
 
-		fillBuffer(file, bufferFrame, bufferSize, isEOF, seqNum);
-		if (bufferFrame.empty()) {
+		fillBuffer(file, bufferChar, bufferSize);
+		loadFrameFromBuffer(bufferFrame, bufferChar, seqNum, windowSize);
+		if (bufferFrame.empty() && bufferChar.empty()) {
 			isSentAll = true;
 		}
 	}	
