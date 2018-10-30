@@ -17,7 +17,9 @@ using namespace std;
 #define PORT	 8080 
 #define MAX_DATA_SIZE 1024
 #define DATA_FRAME_SIZE 1034
+#define ACK_FRAME_SIZE 6
 #define TIMEOUT 10
+
 
 struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
 	struct sockaddr_in	 servaddr; 
@@ -94,15 +96,10 @@ int main(int argc, char* argv[]) {
 		exit(0);
 	}
 
-<<<<<<< HEAD
-	unsigned char buffer[bufferSize];
-	queue<char> buffer;
-	int counterBuffer = 0;
-=======
 	// Deklarasi variabel
 	queue<char> bufferChar;
 	deque<frame> bufferFrame;
->>>>>>> 499b534a8631c2ab7e449d106c3f88a09fe1566c
+
 	bool isSentAll = false;
 	unsigned int seqNum = 0;
 	unsigned int LAR = -1;
@@ -119,13 +116,38 @@ int main(int argc, char* argv[]) {
 				if (bufferFrame[i].timeStamp == -1 || bufferFrame[i].timeStamp < time(0)) {
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
 					sendto(sockfd, (const char *)convertToDataFrame(bufferFrame[i]), DATA_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
+					if (bufferFrame[i].sequenceNumber > LFS) {
+						LFS = bufferFrame[i].sequenceNumber;
+					}
 				} 
 			}
 		}
-		
+
+		unsigned int n, len; 
+		unsigned char bufferAck[ACK_FRAME_SIZE];
+		n = recvfrom(sockfd, (char *)bufferAck, ACK_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len);
+
+		if (isAckValid(bufferAck)) {
+			ack tempAck = convertToAck(bufferAck);
+			unsigned int seqNumAck = tempAck.nextSequenceNumber-1;
+			if (bufferAck[0] == ACKVALUE) {
+				if (isInSendingWindow(LFS,windowSize,tempAck.nextSequenceNumber-1)) {
+					bufferFrame[calculateIndexInQueueSender(LFS,windowSize,tempAck.nextSequenceNumber-1)].acked = true;
+				}
+			} else if (bufferAck[0] == NAKVALUE){
+				bufferFrame[seqNumAck].timeStamp = time(0) + TIMEOUT;
+				sendto(sockfd, (const char *)convertToDataFrame(bufferFrame[seqNumAck]), DATA_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
+			}
+		}
+
+		while(!bufferFrame.empty() && bufferFrame.front().acked){
+			LAR = bufferFrame[0].sequenceNumber;
+			bufferFrame.pop_front();			
+		}
+
 		fillBuffer(file, bufferChar, bufferSize);
 		loadFrameFromBuffer(bufferFrame, bufferChar, seqNum, windowSize);
-		if (bufferFrame.size() == 0 ) {
+		if (bufferFrame.empty() && bufferChar.empty()) {
 			isSentAll = true;
 		}
 	}	

@@ -32,7 +32,8 @@ int main() {
 	// Filling server information 
 	servaddr.sin_family = AF_INET; 
 	servaddr.sin_port = htons(PORT); 
-	servaddr.sin_addr.s_addr = inet_addr("192.168.88.174");
+
+	servaddr.sin_addr.s_addr = inet_addr("192.168.137.133");
 	
 	unsigned int n, len; 
 	
@@ -45,7 +46,11 @@ int main() {
 			sizeof(servaddr));  
 	}
 		
-	n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len); 
+	n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_DONTWAIT, (struct sockaddr *) &servaddr, &len);
+	char c = '\0';
+	while (c == '\0') {
+		scanf("%c", &c);
+	};
 	buffer[n] = '\0'; 
 	printf("Server : %s\n", buffer); 
 
