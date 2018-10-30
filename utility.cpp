@@ -20,14 +20,16 @@ typedef struct  Frame {
         int timeStamp = -1;
 } frame;
 
-ack convertToAck(unsigned char *ackFrame){
+ack convertToAck (unsigned char * dataAck) {
     ack tempAck;
-    tempAck.ack = ackFrame[0];
-    for (int i = 1; i <= 4; i++) {
-        tempAck.nextSequenceNumber <<= 8;
-        tempAck.nextSequenceNumber |= ackFrame[i];
+    tempAck.ack = dataAck[0];
+    unsigned int seqNumber = 0;
+    for (int i=1;i<=4;i++) {
+        seqNumber <<= 8;
+        seqNumber |= dataAck[i];
     }
-    tempAck.checksum = ackFrame[5];
+    tempAck.nextSequenceNumber = seqNumber;
+    tempAck.checksum = dataAck[5];
     return tempAck;
 }
 
@@ -81,14 +83,15 @@ unsigned char calculateChecksum(char SOH, unsigned int sequenceNumber,unsigned i
 }
 
 bool isValidDataFrame(unsigned char *dataFrame) {
-    int totalData = 1033;
     int resultChecksum = 0;
+    frame tempFrame = convertToFrame(dataFrame);
+    int totalData = tempFrame.dataLength + 9;
 
-    for (int i=0;i<totalData;i++) {
+    for (int i=0; i<totalData; i++) {
         resultChecksum += dataFrame[i];
         resultChecksum = (resultChecksum + (resultChecksum >> 8)) & 0xFF;
     }
-    char checksumCompare = dataFrame[1033];
+    char checksumCompare = dataFrame[totalData];
     char resultCharChecksum = resultChecksum & 0xFF;
     return !(resultCharChecksum & checksumCompare);
 }
@@ -119,42 +122,33 @@ frame convertToFrame(unsigned char *dataFrame) {
         tempFrame.dataLength <<= 8;
         tempFrame.dataLength |= dataFrame[i];
     }
-    for (i = 9; i <= 1032; i++) {
+    for (i = 9; i < tempFrame.dataLength + 9; i++) {
         tempFrame.data[i-9] = dataFrame[i];
     }
-    tempFrame.checksum = dataFrame[1033];
+    tempFrame.checksum = dataFrame[tempFrame.dataLength + 9];
 
     return tempFrame;
 }
 
-ack convertToAck (unsigned char * dataAck) {
-    ack tempAck;
-    tempAck.ack = dataAck[0];
-    unsigned int seqNumber = 0;
-    for (int i=1;i<=4;i++) {
-        seqNumber <<= 8;
-        seqNumber |= dataAck[i];
-    }
-    tempAck.nextSequenceNumber = seqNumber;
-    tempAck.checksum = dataAck[5];
-    return tempAck;
-}
 
 unsigned char* convertToDataFrame(frame tempFrame) {
     int i;
 
-    unsigned char dataFrame[1034];
+    unsigned char* dataFrame;
+    unsigned int dataLength = tempFrame.dataLength;
+
+    dataFrame = new unsigned char[dataLength+10];
     dataFrame[0] = tempFrame.SOH;
     for (i = 1; i <= 4; i++) {
         dataFrame[i] = tempFrame.sequenceNumber >> (8 * (4 - i));
     }
     for (i = 5; i <= 8; i++) {
-        dataFrame[i] = tempFrame.dataLength >> (8 * (8 - i));
+        dataFrame[i] = dataLength >> (8 * (8 - i));
     }
-    for (i = 9; i <= 1032; i++) {
+    for (i = 9; i < dataLength+9; i++) {
         dataFrame[i] = tempFrame.data[i-9];
     }
-    dataFrame[1033] = tempFrame.checksum;
+    dataFrame[dataLength+9] = tempFrame.checksum;
 
     return dataFrame;
 }
