@@ -11,6 +11,7 @@
 #include "utility.cpp"
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 #define PORT     8080 
@@ -44,7 +45,9 @@ bool isExistInVector(vector<unsigned int> v, unsigned int x){
     return false;
 }
 //send from fileBuffer to file
-void sendBufferToFile();
+void sendBufferToFile(){
+    ofstream myfile;
+}
 // Driver code 
 int main(int argc, char* argv[]) { 
     //Input Processing
