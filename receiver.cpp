@@ -11,12 +11,14 @@
 #include "utility.cpp"
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 #define PORT     8080 
 #define MAXLINE 1024 
 #define FRAMESIZE 1034
 #define MAXSEQUENCENUMBER 256
+#define FILENAME "outFile.txt"
 
 struct sockaddr_in getServAddr(int port){
     struct sockaddr_in servaddr;
@@ -43,8 +45,21 @@ bool isExistInVector(vector<unsigned int> v, unsigned int x){
     }
     return false;
 }
-//send from fileBuffer to file
-void sendBufferToFile();
+
+//get the first idx in array
+unsigned int getSlidingWindowIdx(unsigned int sequenceNumber, unsigned int currentFirstSlidingWindow){
+    return ((sequenceNumber-currentFirstSlidingWindow)%MAXSEQUENCENUMBER)*FRAMESIZE;
+}
+
+//move from buffer to file
+void moveBufferFileToFile(unsigned char* bufferFile, int countBufferFrame, string fileName){
+    fstream outFile;
+    outFile.open(FILENAME, ios_base::app);
+    //cara kirim supaya jumlahnya terbatas sesuai countBufferFrame ?
+    outFile<<bufferFile;
+}
+
+
 // Driver code 
 int main(int argc, char* argv[]) { 
     //Input Processing
@@ -53,9 +68,12 @@ int main(int argc, char* argv[]) {
 	int bufferSize = atoi(argv[3]); //byte
 	int portDestination = atoi(argv[4]);
     char bufferSlidingWindow[FRAMESIZE*windowSize];
+    int countBufferFrame = 0;
+    fstream outputFile;
+
 
     //buffer to handle file transfer from sliding window to file
-    unsigned char bufferFile[bufferSize];
+    unsigned char bufferFile[FRAMESIZE*bufferSize];
     int currentBufferFileIdx = 0;
 
     int sockfd; 
@@ -84,7 +102,7 @@ int main(int argc, char* argv[]) {
     
     frame frameReceived;
     unsigned int len, n; 
-    unsigned int currentMinSlidingWindow = 0;
+    unsigned int currentFirstSlidingWindow = 0;
     vector<unsigned int> unfilledSequenceNumber;
     initQueueSequenceNumber(unfilledSequenceNumber, windowSize);
     while(true){
@@ -117,28 +135,44 @@ int main(int argc, char* argv[]) {
             }
             //Get index in buffer where the frame should be put on bufferSlidingWindow
             //Kalau sequence number lebih kecil ?
-            int startBufferIdx = (sequenceNumber-currentMinSlidingWindow)*FRAMESIZE;
+            int startBufferIdx = getSlidingWindowIdx(sequenceNumber,currentFirstSlidingWindow);
             //Input to buffer of the sliding window
             for(int i=0;i<FRAMESIZE;i++){
                 bufferSlidingWindow[startBufferIdx+i] = buffer[i];
             }
             //move the sliding window
-            if(unfilledSequenceNumber[0]>currentMinSlidingWindow){
-                unsigned int prevMinSlidingWindow = currentMinSlidingWindow;
-                currentMinSlidingWindow = unfilledSequenceNumber[0];
+            if(unfilledSequenceNumber[0]>currentFirstSlidingWindow){
+                //Send frame to file buffer
+                //if the buffer is full, send it to file
+                int slidingWindowFrameIdx = unfilledSequenceNumber[0]-currentFirstSlidingWindow;
+                if(countBufferFrame+slidingWindowFrameIdx == bufferSize){
+                    //move buffer file to file
+                    moveBufferFileToFile(bufferFile, countBufferFrame, FILENAME);
+                    countBufferFrame = 0;
+                }
+                //move frames as the change of minSequenceNumber
+                //move the files from sliding window to file buffer
+                //move for each frame
+                for(int j=0;j<slidingWindowFrameIdx;j++){
+                    //move data in a frame
+                    for(int k=0;k<FRAMESIZE;k++){
+                        bufferFile[countBufferFrame*FRAMESIZE+j*FRAMESIZE+k] =  bufferSlidingWindow[j*FRAMESIZE+k];
+                    }
+                }
+                countBufferFrame += slidingWindowFrameIdx;
+
+                unsigned int prevMinSlidingWindow = currentFirstSlidingWindow;
+                currentFirstSlidingWindow = unfilledSequenceNumber[0];
                 //add to unfilled vector
                 for(unsigned int i=prevMinSlidingWindow;i<windowSize;i++){
                     //check masih error, yang lebih besar aja yang ditambahin
-                    if(!isExistInVector(unfilledSequenceNumber,(currentMinSlidingWindow+i)%MAXSEQUENCENUMBER)){
-                        unfilledSequenceNumber.push_back((currentMinSlidingWindow+i)%MAXSEQUENCENUMBER);
+                    if(!isExistInVector(unfilledSequenceNumber,(currentFirstSlidingWindow+i)%MAXSEQUENCENUMBER)){
+                        unfilledSequenceNumber.push_back((currentFirstSlidingWindow+i)%MAXSEQUENCENUMBER);
                     }
                 }
             }
 
-            //send to file buffer
-            if(currentBufferFileIdx == bufferSize){
-                sendBufferToFile();
-            }
+            
 
             printf("Client : %s\n", buffer);             
         }
