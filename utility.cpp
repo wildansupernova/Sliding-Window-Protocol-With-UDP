@@ -4,6 +4,16 @@ using namespace std;
 #define ACKVALUE 1
 #define NAKVALUE 2
 
+#define PORT	 8080 
+#define MAX_DATA_SIZE 1024
+#define DATA_FRAME_SIZE 1034
+#define ACK_FRAME_SIZE 6
+#define TIMEOUT 2
+#define RECVFROM_TIMEOUT 4294967295
+#define SOH_EOF 6
+#define SOH_DEFAULT 1
+#define SOH_NOT_VALID 5
+
 typedef struct  ACK { 
         unsigned char ack ;
         unsigned int nextSequenceNumber;
@@ -34,12 +44,13 @@ ack convertToAck (unsigned char * dataAck) {
 }
 
 unsigned char* convertToAckFrame(ack inputAck){
-    unsigned char tempAckFrame[6];
-    tempAckFrame[0] = inputAck.ack;
+    unsigned char* dataACK = new unsigned char[ACK_FRAME_SIZE];
+    dataACK[0] = inputAck.ack;
     for (int i = 1; i <= 4; i++) {
-        tempAckFrame[i] = inputAck.nextSequenceNumber >> (8 * (4 - i));
+        dataACK[i] = inputAck.nextSequenceNumber >> (8 * (4 - i));
     }
-    tempAckFrame[5] = inputAck.checksum;
+    dataACK[5] = inputAck.checksum;
+    return dataACK;
 }
 
 unsigned char calculateChecksum(unsigned char ack,unsigned int nextSequenceNumber) {
@@ -83,6 +94,7 @@ unsigned char calculateChecksum(char SOH, unsigned int sequenceNumber,unsigned i
 }
 
 frame convertToFrame(unsigned char *dataFrame) {
+    //Data sudah valid
     int i;
 
     frame tempFrame;
@@ -103,10 +115,9 @@ frame convertToFrame(unsigned char *dataFrame) {
     return tempFrame;
 }
 
-bool isValidDataFrame(unsigned char *dataFrame) {
+bool isValidDataFrame(unsigned char *dataFrame, int n) {
     int resultChecksum = 0;
-    frame tempFrame = convertToFrame(dataFrame);
-    int totalData = tempFrame.dataLength + 9;
+    int totalData = n-1;
 
     for (int i=0; i<totalData; i++) {
         resultChecksum += dataFrame[i];
@@ -115,6 +126,11 @@ bool isValidDataFrame(unsigned char *dataFrame) {
     char checksumCompare = dataFrame[totalData];
     char resultCharChecksum = resultChecksum & 0xFF;
     return !(resultCharChecksum & checksumCompare);
+}
+
+bool isValidDataFrame(frame dataFrame) {
+    unsigned char checksum = calculateChecksum(dataFrame.SOH,dataFrame.sequenceNumber,dataFrame.dataLength,dataFrame.data);
+    return checksum == dataFrame.checksum;
 }
 
 bool isAckValid(unsigned char *dataAck) {
@@ -153,7 +169,7 @@ unsigned char* convertToDataFrame(frame tempFrame) {
 }
 
 
-bool isInSendingWindow (unsigned int lfs,unsigned int windowSize, unsigned int seqNum) {
+bool isInWindow (unsigned int lfs,unsigned int windowSize, unsigned int seqNum) {
     unsigned int left = lfs-windowSize+1;
     unsigned int right = lfs;
     return left <= seqNum && seqNum <= right;
@@ -162,4 +178,21 @@ bool isInSendingWindow (unsigned int lfs,unsigned int windowSize, unsigned int s
 
 int calculateIndexInQueueSender (unsigned int lfs,unsigned int windowSize, unsigned int seqNum) {
     return seqNum - (lfs-windowSize+1);
+}
+
+
+int sizeOfFrame(frame &d) {
+    return d.dataLength+sizeof(d.sequenceNumber)+sizeof(d.dataLength)+sizeof(d.SOH) + sizeof(d.checksum);
+}
+
+
+
+
+
+ack createACK (char ackVAL, unsigned int &seqNum) {
+    ack temp;
+    temp.ack = ackVAL;
+    temp.nextSequenceNumber = seqNum+1;
+    temp.checksum = calculateChecksum(ackVAL,temp.nextSequenceNumber);
+    return temp;
 }

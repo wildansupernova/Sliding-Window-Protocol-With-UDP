@@ -14,14 +14,6 @@
 
 using namespace std;
 
-#define PORT	 8080 
-#define MAX_DATA_SIZE 1024
-#define DATA_FRAME_SIZE 1034
-#define ACK_FRAME_SIZE 6
-#define TIMEOUT 10
-#define RECVFROM_TIMEOUT 4294967295
-
-
 pthread_mutex_t lockQueueRecv;
 
 struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
@@ -39,7 +31,7 @@ struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
 void fillBuffer(FILE* file, deque<frame>& buffer, int maxBuff, bool& isEOF, unsigned int& seqNum) {
 	unsigned char c;
 
-	while (buffer.size() < maxBuff) {
+	while (buffer.size() < maxBuff && !isEOF) {
         frame tempFrame;
         int counter = 0;
 
@@ -49,14 +41,14 @@ void fillBuffer(FILE* file, deque<frame>& buffer, int maxBuff, bool& isEOF, unsi
                 counter++;
             } else {
                 isEOF = true;
-                tempFrame.SOH = 0;
+                tempFrame.SOH = SOH_EOF;
             }
 		}
 
         tempFrame.sequenceNumber = seqNum;
         tempFrame.dataLength = counter;
         tempFrame.checksum = calculateChecksum(tempFrame.SOH, tempFrame.sequenceNumber, tempFrame.dataLength, tempFrame.data);
-
+		seqNum++;
         buffer.push_back(tempFrame);
 	}
 }
@@ -68,14 +60,19 @@ void fetchACK(bool *isSentAll, int *sockfd, struct sockaddr_in *servaddr, queue<
  
     while (!(*isSentAll)) {
         n = recvfrom(*sockfd, (char *)bufferAck, ACK_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) servaddr, &len);
-
-		tempACK = convertToAck(bufferAck);
 		pthread_mutex_lock(&lockQueueRecv); 
-		if (n != RECVFROM_TIMEOUT) {
+		if (n != RECVFROM_TIMEOUT && isAckValid(bufferAck)) {
+			tempACK = convertToAck(bufferAck);
 			(*bufferACK).push(tempACK);
 		}
 		pthread_mutex_unlock(&lockQueueRecv); 
     }
+}
+
+void sendFrame(int &sockfd, struct sockaddr_in &servaddr, frame &data) {
+	unsigned char * dataFrameByte = convertToDataFrame(data);
+	sendto(sockfd, (const char *)dataFrameByte, sizeOfFrame(data), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
+	delete dataFrameByte;
 }
 
 // Driver code 
@@ -113,9 +110,8 @@ int main(int argc, char* argv[]) {
 	unsigned int LFS = -1;
 
 	fillBuffer(file, bufferFrame, bufferSize, isEOF, seqNum);
-
     struct timeval tv;
-    tv.tv_sec = 5;  /* 30 Secs Timeout */
+    tv.tv_sec = 2;  /* 30 Secs Timeout */
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
 
 	std::thread t1(fetchACK, &isSentAll, &sockfd, &servaddr, &bufferACK);
@@ -126,12 +122,18 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < bufferACK.size(); i++) {
 			tempACK = bufferACK.front();
 			bufferACK.pop();
-
-			bufferFrame[tempACK.nextSequenceNumber-LAR-2].acked = true;
+			if (tempACK.ack == ACKVALUE) {	
+				cout<<tempACK.nextSequenceNumber-1<<" "<<bufferFrame.size()<<endl;	
+				bufferFrame[tempACK.nextSequenceNumber-LAR-2].acked = true;
+				cout<<"wildans"<<endl;
+			} else {
+				cout<<"NAK-"<<tempACK.nextSequenceNumber-1<<" "<<bufferFrame.size()<<endl;
+				sendFrame(sockfd,servaddr,bufferFrame[tempACK.nextSequenceNumber-LAR-2]);
+			}
 		}
-		
 		pthread_mutex_unlock(&lockQueueRecv); 
 		//pop frame paling kiri yang udah acked
+		
 		while (bufferFrame.front().acked) {
 			
 			bufferFrame.pop_front();
@@ -143,13 +145,13 @@ int main(int argc, char* argv[]) {
 			if (!bufferFrame[i].acked) {
 				if (bufferFrame[i].timeStamp == -1) {
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
-					sendto(sockfd, (const char *)convertToDataFrame(bufferFrame[i]), DATA_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
+					sendFrame(sockfd,servaddr,bufferFrame[i]);
 					if (bufferFrame[i].sequenceNumber > LFS) {
 						LFS = bufferFrame[i].sequenceNumber;
 					}
 				} else if (bufferFrame[i].timeStamp < time(0)) {
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
-					sendto(sockfd, (const char *)convertToDataFrame(bufferFrame[i]), DATA_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
+					sendFrame(sockfd,servaddr,bufferFrame[i]);
 				}
 			}
 		}
@@ -160,15 +162,7 @@ int main(int argc, char* argv[]) {
 			isSentAll = true;
 		}
 	}	
-
-	// unsigned int n, len; 
-	
-	// sendto(sockfd, (const char *)hello, strlen(hello), 
-	// 	MSG_CONFIRM, (const struct sockaddr *) &servaddr, 
-	// 		sizeof(servaddr)); 		
-	// n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *) &servaddr, &len); 
-	// buffer[n] = '\0'; 
-	// printf("Server : %s\n", buffer); 
+	t1.join();
 
 	close(sockfd); 
 	fclose(file);

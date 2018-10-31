@@ -12,7 +12,7 @@
 
 using namespace std;
 #define PORT     8080 
-#define MAXLINE 1024 
+#define MAXLINE 1524 
   
 // Driver code 
 int main() { 
@@ -52,14 +52,14 @@ int main() {
                     cout << n << endl;
         buffer[n] = '\0'; 
         printf("Client : %s\n", buffer); 
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 10; i++) {
             cout << buffer[i] << endl;
         }
         
     }
     sendto(sockfd, (const char *)hello, strlen(hello),  
         MSG_CONFIRM, (const struct sockaddr *) &cliaddr, 
-            len); 
+            sizeof(cliaddr)); 
     printf("Hello message sent.\n");  
       
     return 0; 
