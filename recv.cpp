@@ -11,7 +11,6 @@
 #include "utility.cpp"
 #include <thread>
 
-
 using namespace std;
 
 pthread_mutex_t lockQueueRecv;
@@ -25,7 +24,7 @@ struct sockaddr_in getServAddrServer (int port) {
 	
 	// Filling server information 
     servaddr.sin_family    = AF_INET; // IPv4 
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_addr.s_addr = inet_addr("0.0.0.0");
     servaddr.sin_port = htons(port);
 
 	return servaddr;
@@ -49,14 +48,39 @@ void fetchFrame(int *sockfd,bool *isEnd, struct sockaddr_in *clientaddr, deque<f
     unsigned int n, len; 
     unsigned char bufferFrame[DATA_FRAME_SIZE];
 	frame tempFrame;
+
+    fd_set readfds, masterfds;
+    struct timeval timeout;
+
+    timeout.tv_sec = 2;                    /*set the timeout to 10 seconds*/
+    timeout.tv_usec = 0;
     while (!(*isEnd)) {
-        cout<<"Init Receive Frame "<<endl;
-        n = recvfrom(*sockfd, (char *)bufferFrame, DATA_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) clientaddr, &len);
-        tempFrame = convertToFrame(bufferFrame);
-        cout<<"Receive Frame "<<tempFrame.sequenceNumber<<endl;
-        pthread_mutex_lock(&lockQueueRecv);
-        (*bufferFrameQue).push_back(tempFrame);
-        pthread_mutex_unlock(&lockQueueRecv);
+        FD_ZERO(&masterfds);
+        FD_SET(*sockfd, &masterfds);
+
+        memcpy(&readfds, &masterfds, sizeof(fd_set));
+
+        if (select(*sockfd+1, &readfds, NULL, NULL, &timeout) < 0)
+        {
+            perror("on select");
+            exit(1);
+        }
+        if (FD_ISSET(*sockfd, &readfds))
+        {
+            // read from the socket
+            cout<<"Init Receive Frame "<<endl;
+            n = recvfrom(*sockfd, (char *)bufferFrame, DATA_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) clientaddr, &len);
+            tempFrame = convertToFrame(bufferFrame);
+            cout<<"Receive Frame "<<tempFrame.sequenceNumber<<endl;
+            pthread_mutex_lock(&lockQueueRecv);
+            (*bufferFrameQue).push_back(tempFrame);
+            pthread_mutex_unlock(&lockQueueRecv);
+        }
+        else
+        {
+            // the socket timedout
+        }
+
     }
 
     cout<<"Selesai Fetch Frame"<<endl;

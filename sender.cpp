@@ -1,4 +1,3 @@
-// Client side implementation of UDP client-server model 
 #include <bits/stdc++.h>
 #include <stdio.h> 
 #include <stdlib.h> 
@@ -133,12 +132,13 @@ int main(int argc, char* argv[]) {
 		}
 		pthread_mutex_unlock(&lockQueueRecv); 
 		//pop frame paling kiri yang udah acked
-		
+		cout<<"ah"<<endl;
 		while (bufferFrame.front().acked) {
-			
+			cout<<"all"<<endl;
 			bufferFrame.pop_front();
 			LAR++;
 		}
+		cout<<"wik wik"<<endl;
 		//cek isi bufferFrame
 		for(int i = 0; i < windowSize && i < bufferFrame.size(); i++)
 		{
@@ -163,8 +163,6 @@ int main(int argc, char* argv[]) {
 		}
 	}	
 	t1.join();
-
-	close(sockfd); 
 	fclose(file);
 	return 0; 
 }

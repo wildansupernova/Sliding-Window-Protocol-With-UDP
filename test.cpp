@@ -14,7 +14,8 @@ int main() {
     bool udahan = false;
     unsigned char c;
 
-
+    string s;
+    s.c
     while (fscanf(file, "%c", &c) != EOF) {
     }
 }
