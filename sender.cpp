@@ -70,8 +70,10 @@ void fetchACK(bool *isSentAll, int *sockfd, struct sockaddr_in *servaddr, queue<
 
 void sendFrame(int &sockfd, struct sockaddr_in &servaddr, frame &data) {
 	unsigned char * dataFrameByte = convertToDataFrame(data);
+	// string s = convertToDataFrameWithString(data);
+	cout<<"Send Frame "<<data.sequenceNumber<<endl;
 	sendto(sockfd, (const char *)dataFrameByte, sizeOfFrame(data), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
-	delete dataFrameByte;
+	delete[] dataFrameByte;
 }
 
 // Driver code 
@@ -122,27 +124,24 @@ int main(int argc, char* argv[]) {
 			tempACK = bufferACK.front();
 			bufferACK.pop();
 			if (tempACK.ack == ACKVALUE) {	
-				cout<<tempACK.nextSequenceNumber-1<<" "<<bufferFrame.size()<<endl;	
+				cout<<"ACK "<<tempACK.nextSequenceNumber-1<<endl;	
 				bufferFrame[tempACK.nextSequenceNumber-LAR-2].acked = true;
-				cout<<"wildans"<<endl;
 			} else {
-				cout<<"NAK-"<<tempACK.nextSequenceNumber-1<<" "<<bufferFrame.size()<<endl;
+				cout<<"NAK "<<tempACK.nextSequenceNumber-1<<" "<<bufferFrame.size()<<endl;
 				sendFrame(sockfd,servaddr,bufferFrame[tempACK.nextSequenceNumber-LAR-2]);
 			}
 		}
 		pthread_mutex_unlock(&lockQueueRecv); 
 		//pop frame paling kiri yang udah acked
-		cout<<"ah"<<endl;
-		while (bufferFrame.front().acked) {
-			cout<<"all"<<endl;
+		while (!bufferFrame.empty() && bufferFrame.front().acked) {
 			bufferFrame.pop_front();
 			LAR++;
 		}
-		cout<<"wik wik"<<endl;
 		//cek isi bufferFrame
-		for(int i = 0; i < windowSize && i < bufferFrame.size(); i++)
+		for(int i = 0; i < windowSize && i < bufferFrame.size() && !isSentAll; i++)
 		{
 			if (!bufferFrame[i].acked) {
+				cout<<i<<" Size Frame "<<bufferFrame[i].sequenceNumber<<" : "<<bufferFrame[i].dataLength<<" "<<bufferFrame.size()<<" "<<isEOF<<endl;
 				if (bufferFrame[i].timeStamp == -1) {
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
 					sendFrame(sockfd,servaddr,bufferFrame[i]);
@@ -150,6 +149,7 @@ int main(int argc, char* argv[]) {
 						LFS = bufferFrame[i].sequenceNumber;
 					}
 				} else if (bufferFrame[i].timeStamp < time(0)) {
+					cout<<"Packet Loss "<<bufferFrame[i].sequenceNumber<<endl;
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
 					sendFrame(sockfd,servaddr,bufferFrame[i]);
 				}
@@ -161,8 +161,9 @@ int main(int argc, char* argv[]) {
 		if (bufferFrame.empty() && isEOF) {
 			isSentAll = true;
 		}
-	}	
+	}
 	t1.join();
+	close(sockfd); 
 	fclose(file);
 	return 0; 
 }

@@ -68,10 +68,8 @@ void fetchFrame(int *sockfd,bool *isEnd, struct sockaddr_in *clientaddr, deque<f
         if (FD_ISSET(*sockfd, &readfds))
         {
             // read from the socket
-            cout<<"Init Receive Frame "<<endl;
             n = recvfrom(*sockfd, (char *)bufferFrame, DATA_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) clientaddr, &len);
             tempFrame = convertToFrame(bufferFrame);
-            cout<<"Receive Frame "<<tempFrame.sequenceNumber<<endl;
             pthread_mutex_lock(&lockQueueRecv);
             (*bufferFrameQue).push_back(tempFrame);
             pthread_mutex_unlock(&lockQueueRecv);
@@ -82,8 +80,6 @@ void fetchFrame(int *sockfd,bool *isEnd, struct sockaddr_in *clientaddr, deque<f
         }
 
     }
-
-    cout<<"Selesai Fetch Frame"<<endl;
 }
 
 
@@ -143,6 +139,7 @@ int main(int argc, char* argv[]) {
             frame temp = bufferFrameQue.front();
             // cout<<temp.sequenceNumber<<" "<<isValidDataFrame(temp);
             if (isValidDataFrame(temp)) {
+                cout<<"Receive Frame "<<temp.sequenceNumber<<endl;
                 if (isInWindow(LAF,windowSize,temp.sequenceNumber)) {
                     if (!slidingWindow[temp.sequenceNumber-LFR-1].acked) {
                         slidingWindow[temp.sequenceNumber-LFR-1] = temp;
@@ -159,7 +156,7 @@ int main(int argc, char* argv[]) {
         }
         pthread_mutex_unlock(&lockQueueRecv);
 
-        while (slidingWindow.front().acked && slidingWindow.front().SOH != SOH_NOT_VALID) {
+        while (!slidingWindow.empty() && slidingWindow.front().acked && slidingWindow.front().SOH != SOH_NOT_VALID) {
             LAF++;
             LFR++;
             frame tempyak = slidingWindow.front();

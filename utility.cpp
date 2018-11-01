@@ -168,6 +168,25 @@ unsigned char* convertToDataFrame(frame tempFrame) {
     return dataFrame;
 }
 
+string convertToDataFrameWithString(frame tempFrame) {
+    int i;
+    string s;
+    unsigned int dataLength = tempFrame.dataLength;
+    s.push_back(tempFrame.SOH);
+    for (i = 1; i <= 4; i++) {
+        s.push_back(tempFrame.sequenceNumber >> (8 * (4 - i)));
+    }
+    for (i = 5; i <= 8; i++) {
+        s.push_back(dataLength >> (8 * (8 - i)));
+    }
+    for (i = 9; i < dataLength+9; i++) {
+        s.push_back(tempFrame.data[i-9]);
+    }
+    s.push_back(tempFrame.checksum);
+
+    return s;
+}
+
 
 bool isInWindow (unsigned int lfs,unsigned int windowSize, unsigned int seqNum) {
     unsigned int left = lfs-windowSize+1;
