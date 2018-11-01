@@ -14,6 +14,7 @@
 using namespace std;
 
 pthread_mutex_t lockQueueRecv;
+pthread_mutex_t lockClientAddr;
 
 #define PORT     8080 
 #define MAXLINE 1524 
@@ -31,17 +32,17 @@ struct sockaddr_in getServAddrServer (int port) {
 }  
 
 void sendACK(int &sockfd, struct sockaddr_in &clientaddr, unsigned int frameNumber) {
-    cout<<"Send ACK "<<frameNumber<<endl;
 	unsigned char * dataACK = convertToAckFrame(createACK(ACKVALUE,frameNumber));
 	sendto(sockfd, (const char *)dataACK, ACK_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &clientaddr, sizeof(clientaddr)); 	
-	delete dataACK;
+    cout<<"Send ACK "<<frameNumber<<endl;
+	delete[] dataACK;
 }
 
 void sendNAK(int &sockfd, struct sockaddr_in &clientaddr, unsigned int frameNumber) {
     cout<<"Send NAK "<<frameNumber<<endl;
 	unsigned char * dataACK = convertToAckFrame(createACK(NAKVALUE,frameNumber));
 	sendto(sockfd, (const char *)dataACK, ACK_FRAME_SIZE, MSG_CONFIRM, (const struct sockaddr *) &clientaddr, sizeof(clientaddr)); 	
-	delete dataACK;
+	delete[] dataACK;
 }
 
 void fetchFrame(int *sockfd,bool *isEnd, struct sockaddr_in *clientaddr, deque<frame> *bufferFrameQue) {
@@ -68,6 +69,7 @@ void fetchFrame(int *sockfd,bool *isEnd, struct sockaddr_in *clientaddr, deque<f
         if (FD_ISSET(*sockfd, &readfds))
         {
             // read from the socket
+            
             n = recvfrom(*sockfd, (char *)bufferFrame, DATA_FRAME_SIZE, MSG_WAITALL, (struct sockaddr *) clientaddr, &len);
             tempFrame = convertToFrame(bufferFrame);
             pthread_mutex_lock(&lockQueueRecv);
@@ -89,6 +91,26 @@ void printframe (frame temp) {
     }
 }
 
+void printSockaddr(struct sockaddr_in addr){
+    cout<<addr.sin_addr.s_addr<<" "<<addr.sin_family<<" "<<addr.sin_port<<" s "<<addr.sin_zero[1]<<endl;
+}
+
+bool isSockAddrSame(struct sockaddr_in &addr1,struct sockaddr_in &addr2) {
+    if (
+        (addr1.sin_addr.s_addr == addr2.sin_addr.s_addr) && 
+        (addr1.sin_family == addr2.sin_family) && 
+        (addr1.sin_port == addr2.sin_port)
+    ) {
+        for (int i=0;i<8;i++) {
+            if (addr1.sin_zero[i]!=addr2.sin_zero[i]) {
+                return false;
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
 // Driver code 
 int main(int argc, char* argv[]) { 
     //Input Processing
@@ -101,6 +123,7 @@ int main(int argc, char* argv[]) {
     int sockfd;
     struct sockaddr_in servaddr = getServAddrServer(portDestination);
     struct sockaddr_in cliaddr; 
+    struct sockaddr_in paddr; 
       
     // Creating socket file descriptor 
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
@@ -109,6 +132,7 @@ int main(int argc, char* argv[]) {
     } 
       
     memset(&cliaddr, 0, sizeof(cliaddr)); 
+    memset(&paddr, 0, sizeof(paddr)); 
       
     // Bind the socket with the server address 
     if ( bind(sockfd, (const struct sockaddr *)&servaddr,  
@@ -138,6 +162,11 @@ int main(int argc, char* argv[]) {
 
     thread t1(fetchFrame, &sockfd, &isEnd, &cliaddr, &bufferFrameQue);
     int count = 0;
+    bool isCliAddrSame = true;
+
+    while (isSockAddrSame(cliaddr,paddr)) {        
+    }
+
     while (!(isEnd)) {
         pthread_mutex_lock(&lockQueueRecv);
         while (!bufferFrameQue.empty()) {
@@ -145,11 +174,13 @@ int main(int argc, char* argv[]) {
             // cout<<temp.sequenceNumber<<" "<<isValidDataFrame(temp);
             if (isValidDataFrame(temp)) {
                 cout<<"Receive Frame "<<temp.sequenceNumber<<endl;
+                // usleep(3000000);
                 if (isInWindow(LAF,windowSize,temp.sequenceNumber)) {
                     if (!slidingWindow[temp.sequenceNumber-LFR-1].acked) {
                         slidingWindow[temp.sequenceNumber-LFR-1] = temp;
                         slidingWindow[temp.sequenceNumber-LFR-1].acked = true;
                     }
+                    printSockaddr(cliaddr);
                     sendACK(sockfd,cliaddr,temp.sequenceNumber);
                 } else if (temp.sequenceNumber<=LFR) {
                     sendACK(sockfd,cliaddr,temp.sequenceNumber);
@@ -168,19 +199,18 @@ int main(int argc, char* argv[]) {
             for (int i=0;i<tempyak.dataLength;i++) {
                 ofile<<tempyak.data[i];
             }
-            cout<<endl;
             slidingWindow.pop_front();
-            cout<<"SOH "<<(int)tempyak.SOH<<endl;
             if (tempyak.SOH == SOH_EOF) {
                 isEnd = true;
             }
-            if (!(isEnd)) {
-                slidingWindow.push_back(dummy);
-            }
+
+            slidingWindow.push_back(dummy);
         }
     }
+
     cout<<"Selesai"<<endl;
     cout << "sockfd: " << sockfd << endl;
 
     t1.join();
+    // close(sockfd);
 } 

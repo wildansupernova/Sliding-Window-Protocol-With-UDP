@@ -8,7 +8,7 @@ using namespace std;
 #define MAX_DATA_SIZE 1024
 #define DATA_FRAME_SIZE 1034
 #define ACK_FRAME_SIZE 6
-#define TIMEOUT 3
+#define TIMEOUT 5
 #define RECVFROM_TIMEOUT 4294967295
 #define SOH_EOF 6
 #define SOH_DEFAULT 1
