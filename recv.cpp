@@ -117,6 +117,10 @@ int main(int argc, char* argv[]) {
         perror("bind failed"); 
         exit(EXIT_FAILURE); 
     } 
+
+    // membuka stream untuk menulis file
+    ofstream ofile;
+    ofile.open(fileName, std::ios_base::app);
     
     // inisialisasi variabel
     bool isEnd = false;
@@ -127,6 +131,7 @@ int main(int argc, char* argv[]) {
     unsigned int LAF = windowSize-1;
     unsigned int LFR = -1;
 
+    // timeout
     struct timeval tv;
     tv.tv_sec = 2;  /* 30 Secs Timeout */
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
@@ -161,7 +166,7 @@ int main(int argc, char* argv[]) {
             LFR++;
             frame tempyak = slidingWindow.front();
             for (int i=0;i<tempyak.dataLength;i++) {
-                cout<<tempyak.data[i];
+                ofile<<tempyak.data[i];
             }
             cout<<endl;
             slidingWindow.pop_front();

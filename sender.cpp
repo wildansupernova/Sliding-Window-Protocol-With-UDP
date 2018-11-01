@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
 		for(int i = 0; i < windowSize && i < bufferFrame.size() && !isSentAll; i++)
 		{
 			if (!bufferFrame[i].acked) {
-				cout<<i<<" Size Frame "<<bufferFrame[i].sequenceNumber<<" : "<<bufferFrame[i].dataLength<<" "<<bufferFrame.size()<<" "<<isEOF<<endl;
+				// cout<<i<<" Size Frame "<<bufferFrame[i].sequenceNumber<<" : "<<bufferFrame[i].dataLength<<" "<<bufferFrame.size()<<" "<<isEOF<<endl;
 				if (bufferFrame[i].timeStamp == -1) {
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
 					sendFrame(sockfd,servaddr,bufferFrame[i]);
