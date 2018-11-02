@@ -1,9 +1,9 @@
 # Sliding-Window-Protocol-With-UDP
 
 ## Anggota Kelompok
-Mathias Novianto - 13516021
-Rizky Andyno Ramadhan - 13516063
-Wildan Dicky Alnatara - 13516012
+Mathias Novianto - 13516021<br>
+Rizky Andyno Ramadhan - 13516063<br>
+Wildan Dicky Alnatara - 13516012<br>
 
 ## Petunjuk Penggunaan Program
 1. Compile program dengan menjalankan file Makefile dengan menggunakan command `make Makefile`.
@@ -24,6 +24,6 @@ Pada sisi sender, sliding window bekerja dengan dua thread; thread pertama sebag
 Pada sisi receiver, sliding window tidak berbeda jauh dengan sliding window pada sisi sender. Bedanya, kali ini terdapat thread untuk menerima frame dari sender. Ketika receiver menerima frame yang *sequence number*-nya berada di rentang sliding window, maka frame akan dicek validitasnya dan apabila sudah sesuai dengan checksumnya, frame tersebut akan disimpan di buffer dan receiver akan mengirimkan ACK. Setelah itu, dilakukan pengecekan secara berkala untuk melihat apakah frame pada pojok kiri sliding window telah diterima. Apabila sudah, receiver akan menulis ke dalam file eksternal data yang ada di dalam frame tersebut dan frame tersebut langsung dilepas dari buffer. Apabila frame yang diterima tidak sesuai dengan checksumnya, maka receiver akan langsung mengirimkan NAK untuk meminta sender untuk mengirim ulang frame tersebut.
 
 ## Pembagian Tugas
-Mathias -> Pembuatan Receiver, Pengujian Program, Pembuatan Fungsi Utility
-Rizky -> Pembuatan Sender, Implementasi Simulasi Packet Corrupt, Makefile, Sedikit Utility
-Wildan -> Pembuatan Sender, Pembuatan Receiver, Pengujian Program, Pembuatan Fungsi Utility
+Mathias -> Pembuatan Receiver, Pengujian Program, Pembuatan Fungsi Utility <br>
+Rizky -> Pembuatan Sender, Implementasi Simulasi Packet Corrupt, Makefile, Sedikit Utility <br>
+Wildan -> Pembuatan Sender, Pembuatan Receiver, Pengujian Program, Pembuatan Fungsi Utility <br>
