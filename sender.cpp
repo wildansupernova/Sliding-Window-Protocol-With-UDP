@@ -1,6 +1,7 @@
 #include <bits/stdc++.h>
 #include <stdio.h> 
 #include <stdlib.h> 
+#include <cstdlib>
 #include <unistd.h> 
 #include <string.h> 
 #include <sys/types.h> 
@@ -10,10 +11,13 @@
 #include <queue>
 #include "utility.cpp"
 #include <thread>
+#include <time.h>
 
 using namespace std;
 
 pthread_mutex_t lockQueueRecv;
+int randomkocak[] = {12, 24, 53, 63, 10, 45, 68, 83, 20, 10};
+int ikocak = 0;
 
 struct sockaddr_in getServAddrClient (char *IPDestination, int port) {
 	struct sockaddr_in	 servaddr; 
@@ -68,9 +72,18 @@ void fetchACK(bool *isSentAll, int *sockfd, struct sockaddr_in *servaddr, queue<
     }
 }
 
-void sendFrame(int &sockfd, struct sockaddr_in &servaddr, frame &data) {
+void corrupt(unsigned char* data, int val) {
+	if (randomkocak[ikocak%10] < val) {
+		data[0] = 0;
+	}
+	ikocak++;
+}
+
+void sendFrame(int &sockfd, struct sockaddr_in &servaddr, frame &data, char* flag, int val) {
 	unsigned char * dataFrameByte = convertToDataFrame(data);
-	// string s = convertToDataFrameWithString(data);
+	if (!strcmp(flag, "corrupt")) {
+		corrupt(dataFrameByte, val);
+	}
 	cout<<"Send Frame "<<data.sequenceNumber<<endl;
 	sendto(sockfd, (const char *)dataFrameByte, sizeOfFrame(data), MSG_CONFIRM, (const struct sockaddr *) &servaddr, sizeof(servaddr)); 	
 	delete[] dataFrameByte;
@@ -84,7 +97,15 @@ int main(int argc, char* argv[]) {
 	int bufferSize = atoi(argv[3]); //byte
 	char *IPDestination = argv[4];
 	int portDestination = atoi(argv[5]);
-	int sockfd; 
+	char *flag = argv[6];
+	int val = atoi(argv[7]);
+	int sockfd;
+
+	// cek apakah flag diatur namun tidak memiliki value
+	if (flag[0] !=  '\0' && argv[7][0] == '\0') {
+		cout << "Value not specified for flag." << endl;
+		exit(1);
+	}
 
 	struct sockaddr_in servaddr = getServAddrClient(IPDestination,portDestination); 
 
@@ -128,7 +149,7 @@ int main(int argc, char* argv[]) {
 				bufferFrame[tempACK.nextSequenceNumber-LAR-2].acked = true;
 			} else {
 				cout<<"NAK "<<tempACK.nextSequenceNumber-1<<" "<<bufferFrame.size()<<endl;
-				sendFrame(sockfd,servaddr,bufferFrame[tempACK.nextSequenceNumber-LAR-2]);
+				sendFrame(sockfd,servaddr,bufferFrame[tempACK.nextSequenceNumber-LAR-2], flag, val);
 			}
 		}
 		pthread_mutex_unlock(&lockQueueRecv); 
@@ -144,14 +165,14 @@ int main(int argc, char* argv[]) {
 				// cout<<i<<" Size Frame "<<bufferFrame[i].sequenceNumber<<" : "<<bufferFrame[i].dataLength<<" "<<bufferFrame.size()<<" "<<isEOF<<endl;
 				if (bufferFrame[i].timeStamp == -1) {
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
-					sendFrame(sockfd,servaddr,bufferFrame[i]);
+					sendFrame(sockfd,servaddr,bufferFrame[i], flag, val);
 					if (bufferFrame[i].sequenceNumber > LFS) {
 						LFS = bufferFrame[i].sequenceNumber;
 					}
 				} else if (bufferFrame[i].timeStamp < time(0)) {
 					cout<<"Packet Loss "<<bufferFrame[i].sequenceNumber<<endl;
 					bufferFrame[i].timeStamp = time(0) + TIMEOUT;
-					sendFrame(sockfd,servaddr,bufferFrame[i]);
+					sendFrame(sockfd,servaddr,bufferFrame[i], flag, val);
 				}
 			}
 		}

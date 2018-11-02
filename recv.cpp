@@ -180,7 +180,6 @@ int main(int argc, char* argv[]) {
                         slidingWindow[temp.sequenceNumber-LFR-1] = temp;
                         slidingWindow[temp.sequenceNumber-LFR-1].acked = true;
                     }
-                    printSockaddr(cliaddr);
                     sendACK(sockfd,cliaddr,temp.sequenceNumber);
                 } else if (temp.sequenceNumber<=LFR) {
                     sendACK(sockfd,cliaddr,temp.sequenceNumber);
@@ -209,7 +208,6 @@ int main(int argc, char* argv[]) {
     }
 
     cout<<"Selesai"<<endl;
-    cout << "sockfd: " << sockfd << endl;
 
     t1.join();
     // close(sockfd);
